@@ -1,12 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import redis
 from cow.server import Server
 from cow.plugins.sqlalchemy_plugin import SQLAlchemyPlugin
 from cow.plugins.redis_plugin import RedisPlugin
 from tornado.httpclient import AsyncHTTPClient
 import tornado.locale
-import redis
 from materialgirl import Materializer
 from materialgirl.storage.redis import RedisStorage
 
@@ -41,7 +41,9 @@ from holmes.handlers.users import UserLocaleHandler
 
 from holmes.handlers.bus import EventBusHandler
 from holmes.event_bus import EventBus
-from holmes.utils import load_classes, load_languages, locale_path
+from holmes.utils import (
+    load_classes, load_languages, locale_path, get_redis_port_host
+)
 from holmes.models import Key, DomainsViolationsPrefs
 from holmes.cache import Cache
 from holmes import __version__
@@ -72,6 +74,12 @@ class HolmesApiServer(Server):
 
     def initialize_app(self, *args, **kw):
         super(HolmesApiServer, self).initialize_app(*args, **kw)
+
+        # FIXME - Cow dependency
+        self.config.REDISHOST, self.config.REDISPORT = get_redis_port_host(
+            self.config.get('REDIS_SENTINEL_HOSTS'),
+            self.config.get('REDIS_MASTER')
+        )
 
         self.application.db = None
 
@@ -197,9 +205,10 @@ class HolmesApiServer(Server):
     def configure_material_girl(self):
         from holmes.material import configure_materials
 
-        host = self.config.get('MATERIAL_GIRL_REDISHOST')
-        port = self.config.get('MATERIAL_GIRL_REDISPORT')
-
+        host, port = get_redis_port_host(
+            self.config.get('MATERIAL_GIRL_SENTINEL_HOSTS'),
+            self.config.get('MATERIAL_GIRL_REDIS_MASTER')
+        )
         self.redis_material = redis.StrictRedis(host=host, port=port, db=0)
 
         self.application.girl = Materializer(

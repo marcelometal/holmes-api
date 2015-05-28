@@ -9,7 +9,7 @@ from cow.testing import CowTestCase
 from tornado.httpclient import AsyncHTTPClient
 from tornado import gen
 
-from holmes.utils import Jwt
+from holmes.utils import Jwt, get_redis_port_host
 from holmes.config import Config
 from holmes.server import HolmesApiServer
 from tests.fixtures import db
@@ -34,14 +34,14 @@ class ApiTestCase(CowTestCase):
             SQLALCHEMY_POOL_MAX_OVERFLOW=0,
             SQLALCHEMY_AUTO_FLUSH=True,
             COMMIT_ON_REQUEST_END=False,
-            REDISHOST='localhost',
-            REDISPORT=57575,
             REDISPUBSUB=True,
-            MATERIAL_GIRL_REDISHOST='localhost',
-            MATERIAL_GIRL_REDISPORT=57575,
+            MATERIAL_GIRL_SENTINEL_HOSTS=[('127.0.0.1', 57574)],
+            MATERIAL_GIRL_REDIS_MASTER='master-test',
             ELASTIC_SEARCH_HOST='localhost',
             ELASTIC_SEARCH_PORT=9200,
             ELASTIC_SEARCH_INDEX='holmes-test',
+            REDIS_SENTINEL_HOSTS=[('127.0.0.1', 57574)],
+            REDIS_MASTER='master-test',
         )
 
     def get_server(self):
@@ -106,9 +106,10 @@ class ApiTestCase(CowTestCase):
         import redis
         from holmes.cache import SyncCache
 
-        host = self.server.application.config.get('REDISHOST')
-        port = self.server.application.config.get('REDISPORT')
-
+        host, port = get_redis_port_host(
+            self.config.get('REDIS_SENTINEL_HOSTS'),
+            self.config.get('REDIS_MASTER')
+        )
         redis = redis.StrictRedis(host=host, port=port, db=0)
 
         return SyncCache(self.db, redis, self.server.application.config)

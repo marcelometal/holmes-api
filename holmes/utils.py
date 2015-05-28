@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import six
 import os
 from os.path import abspath, join, dirname
 import logging
@@ -138,6 +139,20 @@ def count_url_levels(url):
             path = path[1:]
         return len(path.split('/'))
     return None
+
+
+def get_redis_port_host(sentinel_hosts, master_name):
+    from redis.sentinel import Sentinel
+
+    if not sentinel_hosts or not isinstance(sentinel_hosts, (list, tuple)):
+        raise ValueError("Sentinels must be a list with valid host:port values")
+
+    if master_name is None or not master_name or not isinstance(master_name, six.string_types):
+        raise ValueError("master_name argument must be a valid name")
+
+    sentinel = Sentinel(sentinel_hosts, socket_timeout=0.1)
+    host, port = sentinel.discover_master(master_name)
+    return host, port
 
 
 class Jwt(object):
